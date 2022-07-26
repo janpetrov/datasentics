@@ -1,0 +1,12 @@
+p {
+    color: blue;
+}
+
+.cls {
+    background-color: blueviolet;
+    border-radius: 5px;
+    height: 2em;
+    width: 10em;
+    text-align: center;
+    margin: auto;
+}
