@@ -3,10 +3,11 @@ p {
 }
 
 .cls {
-    background-color: blueviolet;
-    border-radius: 5px;
-    height: 2em;
-    width: 10em;
+    background-color: rgb(165, 167, 247);
+    border-radius: 10px;
+    height: 6em;
+    width: 12em;
     text-align: center;
     margin: auto;
+    vertical-align: middle;
 }

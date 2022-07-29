@@ -1,10 +1,15 @@
 <!DOCTYPE html>
-<html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en">
+<title>OCR application</title>
 <head>
     <meta charset="utf-8">
     <link rel="stylesheet" href="style.css">
+    <script src="scripts.js"></script>
 </head>
 <body>
-    <div class="cls">nějaký titulek</div>
+    <label for="files">Vyber soubor:</label><input type="file" id="files" name="files" multiple>
+    <div id="output"></div>
+    <script>setup()</script>
 </body>
 </html>
