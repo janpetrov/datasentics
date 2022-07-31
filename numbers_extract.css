@@ -1,0 +1,69 @@
+:root {
+    --orange: rgb(240, 132, 50);
+    --lightpurple: rgb(210, 190, 225);
+    --lighblue: rgba(92, 154, 183, 0.4);
+    --overlayblue: rgba(92, 154, 183, 0.4);
+    --font_family: system-ui, -apple-system, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    --font_size: 1rem;
+    --font_weight: 400;
+    --line_height: 1.5;
+    --width: 40rem;
+    --border-radius: 0.3rem;
+}
+
+body {
+    background-color: var(--lighblue);
+}
+
+.input-line{
+    max-width: var(--width);
+    margin: 2.5rem auto 1.5rem auto;
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+}
+
+.block {
+    font-family: var(--font_family);
+    font-size: var(--font_size);
+    font-weight: var(--font_weight);
+    line-height: var(--line_height);
+    width: var(--width);
+    margin: 1rem auto 1rem auto;
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+    word-wrap: break-word;
+}
+
+.captionblock {
+    margin-top: 3rem;
+    background-color: var(--orange);
+    text-align: center;
+}
+
+.inputblock {
+    background-color: var(--orange);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.contentsblock {
+    background-color: var(--overlayblue);
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.file-upload {
+    border: 1px solid cornsilk;
+    display: inline-block;
+    padding: 0rem 1rem 0rem 1rem;
+    cursor: pointer;
+    border-radius: var(--border-radius);
+}
+
+.file-upload:hover {
+    box-shadow: 0 0 0.1rem cornsilk, 0 0 0.4rem cornsilk;
+}

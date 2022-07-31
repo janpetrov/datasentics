@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="cs">
+<title>OCR application</title>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="numbers_extract.css">
+    <script src="numbers_extract.js"></script>
+</head>
+<body>
+    <div class="block captionblock">EXTRAKCE ČÍSEL ZE SCANŮ</div>
+    <div id="input" class="block inputblock">
+        <label for="files" class="file-upload">klikněte sem a vyberte jpg soubory se scany</label>
+        <input type="file" id="files" name="files" multiple>
+    </div>
+    <div id="output"></div>
+    <script>setup()</script>
+</body>
+</html>
