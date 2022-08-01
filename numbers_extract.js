@@ -4,19 +4,19 @@ let downloadedFileNos = []
 let remainingFileNos = 0;
 
 
-function enableDisableInput(what) {
-    const el1 = document.getElementById('files');
-    const el2 = document.getElementById('file-upload');
-    if (what == 'enable') {
-        el1.disabled = el2.disabled = false;
-        el2.classList.remove('noglow');
+function enableDisableInput(enableOrDisable) {
+    const linkElement = document.getElementById('files');
+    const boxElement = document.getElementById('file-upload');
+    if (enableOrDisable == 'enable') {
+        linkElement.disabled = boxElement.disabled = false;
+        boxElement.classList.remove('noglow');
     }
-    else if (what == 'disable') {
-        el1.disabled = el2.disabled = true;
-        el2.classList.add('noglow');
+    else if (enableOrDisable == 'disable') {
+        linkElement.disabled = boxElement.disabled = true;
+        boxElement.classList.add('noglow');
     }
     else 
-        alert('bad input: ' + what);
+        alert('bad input: ' + enableOrDisable);
 }
 
 function addText(fileName, textInput, fileNo) {
@@ -165,7 +165,9 @@ class ExtractNumbers{
             jumpY: (i > 0) ? v - tops[i-1] : 0,  // jump for the first element is 0
             avgGroupJump: Number.POSITIVE_INFINITY,
             leftIdx: i,
-            rightIdx: i
+            rightIdx: i,
+            leftFailed: false,
+            rightFailed: false
         }));
     }
 
@@ -275,12 +277,28 @@ class ExtractNumbers{
         });
     }
 
+    computeBounds(overlayLines) {
+        return {
+            tops: overlayLines.map(line => Math.min(line.Words.map(item => item.Top))),
+
+            left: overlayLines.map(line => Math.min(line.Words.map(item => item.Left))),
+
+            bottoms: overlayLines.map(line => 
+                Math.max(line.Words.map(item => item.Top + item.Height))),
+
+            rights: overlayLines.map(line => 
+                Math.max(line.Words.map(item => item.Left + item.Width)))
+        }
+    }
+
     /** the main method of the class */
     run(data) {
         const text = data.ParsedResults[0].ParsedText
         const overlayLines = data.ParsedResults[0].TextOverlay.Lines
         // compute average top position of each line (the average for words on that line)
-        const tops = overlayLines.map(line => this.average(line.Words, 'Top'));
+        // const tops = overlayLines.map(line => this.average(line.Words, 'Top'));
+
+        const bounds = this.computeBounds(overlayLines);
 
         // initialization: each line has its own group
         let groups = this.createGroups(tops);
