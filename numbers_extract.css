@@ -1,5 +1,6 @@
 :root {
     --orange: rgb(240, 132, 50);
+    --lightgray: rgb(198, 197, 197);
     --lightpurple: rgb(210, 190, 225);
     --lighblue: rgba(92, 154, 183, 0.4);
     --overlayblue: rgba(92, 154, 183, 0.4);
@@ -44,13 +45,26 @@ body {
 
 .inputblock {
     background-color: var(--orange);
-    margin-bottom: 2rem;
     text-align: center;
+}
+
+.downloadblock {
+    background-color: var(--orange);
+    text-align: center;
+    display: none;
+    margin-bottom: 3rem;
 }
 
 .contentsblock {
     background-color: var(--overlayblue);
 }
+
+.infoblock {
+    background-color: var(--lightgray);
+    text-align: center;
+    display: none;
+}
+
 
 input[type="file"] {
     display: none;
@@ -66,4 +80,9 @@ input[type="file"] {
 
 .file-upload:hover {
     box-shadow: 0 0 0.1rem cornsilk, 0 0 0.4rem cornsilk;
+}
+
+.noglow:hover {
+    box-shadow: 0 0 0 cornsilk;
+    cursor: auto;
 }

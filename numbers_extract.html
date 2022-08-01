@@ -10,10 +10,15 @@
 <body>
     <div class="block captionblock">EXTRAKCE ČÍSEL ZE SCANŮ</div>
     <div id="input" class="block inputblock">
-        <label for="files" class="file-upload">klikněte sem a vyberte jpg soubory se scany</label>
+        <label for="files" id="file-upload" class="file-upload">klikněte sem a vyberte jpg soubory se scany</label>
         <input type="file" id="files" name="files" multiple>
     </div>
+    <div id ="info1" class="block infoblock">po zpracování se dole, na konci, ukáže tlačítko pro stáhnutí v souboru .txt</div>
+    <div id ="info2" class="block infoblock"> znak | odděluje odstavce &nbsp; &nbsp; znak ; odděluje čísla uvnitř odstavce</div>
     <div id="output"></div>
+    <div id="downloadblock" class="block downloadblock">
+        <a id="downloadref" class="file-upload">klikněte sem a vyberte jpg soubory se scany</a>
+    </div>
     <script>setup()</script>
 </body>
 </html>
