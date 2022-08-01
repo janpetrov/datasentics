@@ -4,19 +4,19 @@ let downloadedFileNos = []
 let remainingFileNos = 0;
 
 
-function enableDisableInput(enableOrDisable) {
+function uploadInProgress(inProgress) {
     const linkElement = document.getElementById('files');
     const boxElement = document.getElementById('file-upload');
-    if (enableOrDisable == 'enable') {
-        linkElement.disabled = boxElement.disabled = false;
-        boxElement.classList.remove('noglow');
-    }
-    else if (enableOrDisable == 'disable') {
+    if (inProgress) {
+        document.getElementById('spinner').style.display = 'block';
         linkElement.disabled = boxElement.disabled = true;
         boxElement.classList.add('noglow');
     }
-    else 
-        alert('bad input: ' + enableOrDisable);
+    else {
+        document.getElementById('spinner').style.display = 'none';
+        linkElement.disabled = boxElement.disabled = false;
+        boxElement.classList.remove('noglow');
+    }
 }
 
 function addText(fileName, textInput, fileNo) {
@@ -48,8 +48,7 @@ function addText(fileName, textInput, fileNo) {
         const downloadElement = document.getElementById('downloadref');
         downloadElement.href = url;
         document.getElementById('downloadblock').style.display = 'block'; // unhide
-
-        enableDisableInput('enable');
+        uploadInProgress(false);
     }
 }
 
@@ -61,7 +60,7 @@ function processSingleFile(fileName, data, fileNo) {
     }
 
     // the class is implemented at the end of this file
-    const extractor = new SimplifiedExtract(); 
+    const extractor = new ExtractNumbers(); 
 
     // extractor.run() returns lists (one item per rectangle) of 
     // list (one item per number in the rectangle)
@@ -85,8 +84,12 @@ function sleep (time) {
 }
 
 function handleFiles() {
+    // no action if user chose no file (e.g., just closed the file window)
+    if (this.files.length == 0)
+        return;
+
     // the user cannot enter new files while recognition proceeds
-    enableDisableInput('disable');
+    uploadInProgress(true);
 
     allTexts = Array(this.files.length).fill('');
     downloadedFileNos = Array(this.files.length).fill(false);
@@ -101,7 +104,7 @@ function handleFiles() {
         formData.append('isOverlayRequired', true);  
         formData.append('apikey', 'K88811114388957');
         formData.append('detectOrientation', true);
-        formData.append('OCREngine', 2);
+        // formData.append('OCREngine', 2);
 
         const fetchData = {
             method: 'POST',
@@ -114,7 +117,7 @@ function handleFiles() {
         const outputElement = document.getElementById('output');
         outputElement.innerHTML = "";
 
-        sleep(50*fileNo).then(() => {
+        sleep(250*fileNo).then(() => {
             fetch('https://api.ocr.space/parse/image', fetchData)
             .then(response => response.json())
             .then(data => processSingleFile(file.name, data, fileNo))
@@ -142,6 +145,7 @@ function setup() {
 
 
 const MAX_MERGE_PERCENTAGE = 0.5;
+const MERGE_LIMIT = 20;
 
 class ExtractNumbers{
 
@@ -152,100 +156,88 @@ class ExtractNumbers{
             return array.reduce((acc, val) => acc + val[selector], 0) / array.length;
     }
 
-    /** Each returned element has the structure (array w/ 4 elements):
-        -- [0] increment in y compared to the previous item,
-        -- [1] average increment in y within the group,
-        -- the group spans the tops array from its [2] index,
-        -- to its [3] index
-    Diff of element 0 is unimportant. Elements (groups) 1..n "decide"
-    whether to merge with the immediately preceding group.
-    */
-    createGroups(tops) {
-        return tops.map((v, i) => ({
-            jumpY: (i > 0) ? v - tops[i-1] : 0,  // jump for the first element is 0
-            avgGroupJump: Number.POSITIVE_INFINITY,
-            leftIdx: i,
-            rightIdx: i,
-            leftFailed: false,
-            rightFailed: false
-        }));
-    }
-
-    /** Returns the index of the element with the smallest positive difference
-     * in Y increment.
+    /**
+     * The OCR API returns scanned lines, but does not indicate where
+     * one block ends and another begins. This method finds the breaks,
+     * in particular to determine the single-line paragraph.
+     * 
+     * The method can, to some extent extract even lines of a block that
+     * the OCR API wrongly puts inside lines of another block.
      */
-    groupsMinJump(groups) {
-        // as groups include a small number of lines (hundreds) we refrain
-        // from implementing the priority queue
-        let minJump = Number.POSITIVE_INFINITY;
-        let index = -1;
-        for (let i = 1; i < groups.length; ++i) 
-            if (groups[i].jumpY > 0 && groups[i].jumpY < minJump) {
-                minJump = groups[i].jumpY;
-                index = i;
-            }
-        return index;
-    }
+    mergeGroups(groups, overlayLines) {
+        const noHorizontalOverlap = i =>
+            groups[i].left < groups[i-1].left - MERGE_LIMIT &&
+            groups[i].right < groups[i-1].left - MERGE_LIMIT 
+            ||
+            groups[i].left > groups[i-1].right + MERGE_LIMIT &&
+            groups[i].right > groups[i-1].right + MERGE_LIMIT;
+        
+        const noVerticalOverlap = i =>
+            groups[i].top < groups[i-1].top || 
+            groups[i].top > groups[i-1].bottom + MERGE_LIMIT;
 
-    /** The API returns lines consecutively, from the top of each paragraph
-    to its bottom. However, the API does not indicate any division 
-    between paragraphs. We will discover the divisions using the following 
-    greedy algorithm. 
-    We will always merge to consecutive lines whose difference in y position is
-    the lowest (or groups whose difference in average y position is the lowest). 
-    If however the averages are too different, we stop merging and look at the 
-    groups found so far.
-    */
-    mergeGroups(groups) {
-        while(true) {
-            const i = this.groupsMinJump(groups);
+        let extractedGroups = [];
 
-            if (i == -1)
-                break;  // cannot merge anymore (negative jumps only)
-
-            const nowJump = groups[i].jumpY;
-            const leftAvgJump = groups[i-1].avgGroupJump;
-            const rightAvgJump = groups[i].avgGroupJump;
-
-            const jumpOK = (avg) => { 
-                return avg == Number.POSITIVE_INFINITY || 
-                    nowJump < avg * (1 + MAX_MERGE_PERCENTAGE)
-                    // avg < nowJump * (1 + MAX_MERGE_PERCENTAGE))
-            }
-            
-            if (!jumpOK(leftAvgJump) || !jumpOK(rightAvgJump))
-                break;
-
-            // no break occurred, so we can merge the two closest groups together    
-            if (leftAvgJump== Number.POSITIVE_INFINITY &&
-                    rightAvgJump == Number.POSITIVE_INFINITY)
-                groups[i-1].avgGroupJump = nowJump;
-            else if (leftAvgJump== Number.POSITIVE_INFINITY)
-                groups[i-1].avgGroupJump = rightAvgJump;
-            else if (rightAvgJump==Number.POSITIVE_INFINITY)
-                groups[i].avgGroupJump = leftAvgJump;
-            else {
-                const leftN = groups[i-1].rightIdx - groups[i-1].leftIdx + 1;
-                const rightN = groups[i].rightIdx - groups[i].leftIdx + 1;
-                groups[i-1].avgGroupJump = (leftAvgJump * leftN + rightAvgJump * rightN) /
-                                        (leftN + rightN);
-            }
-
-            groups[i-1].rightIdx = groups[i].rightIdx; // extend the left group to the end
-                                                    //   of the right group
-
-            groups.splice(i, 1) // remove the right group (which has been already merged
-                                // into the left group) from groups
+        const extractGroup = i => {
+            extractedGroups.push(groups[i]);
+            groups.splice(i, 1);
         }
+
+        const bothEndsFailed = i => groups[i].leftFailed && groups[i].rightFailed;
+
+        groups[0].leftFailed = groups[groups.length-1].rightFailed = true;
+
+        for(let bigCycle = 0; bigCycle < 10 && groups.length > 0; ++bigCycle) {
+            let i = 1;
+            while (i < groups.length) {
+                if (noHorizontalOverlap(i) || noVerticalOverlap(i)) {
+                    groups[i].leftFailed = groups[i-1].rightFailed = true;
+                    ++i;
+                }
+                else {
+                    groups[i-1].indices = [...groups[i-1].indices, ...groups[i].indices]
+                    groups[i-1].indices.sort((a,b) => a - b);
+                    groups[i-1].left = Math.min(groups[i-1].left, groups[i].left);
+                    groups[i-1].right = Math.max(groups[i-1].right, groups[i].right);
+                    groups[i-1].top = Math.min(groups[i-1].top, groups[i].top);
+                    groups[i-1].bottom = Math.max(groups[i-1].bottom, groups[i].bottom);
+
+                    groups.splice(i, 1) // remove the right group (which has been already merged
+                    // into the left group) from groups       
+                }
+            }
+
+            // get groups whose both end failed
+            // extract the shortest one
+            // if more groups have length 1, chose the one starting with a numeral
+            let [idx, len, withNum] = [-1, Number.POSITIVE_INFINITY, false];
+            for (let curr = 0; curr < groups.length; ++curr) {
+                const currentLength = groups[curr].indices.length;
+                if (bothEndsFailed(curr) && 
+                        currentLength == len &&      // this & some previous are the shortest
+                        len == 1 &&
+                        !withNum &&                  // line with num not found yet
+                        !isNaN(overlayLines[groups[curr].indices[0]].LineText[0])) {
+                    idx = curr; withNum = true;
+                }
+                else if (bothEndsFailed(curr) && currentLength < len) {
+                    idx = curr; len=currentLength;
+                }
+            }
+            if (idx >= 0)
+                extractGroup(idx);
+        }
+
+        return [...extractedGroups, ...groups];
     }
 
     groupAverageY(group, tops) {
-        return this.average(tops.slice(group.leftIdx, group.rightIdx+1))
+        return this.average(group.indices.map(i => tops[i]));
     }
     
     groupText(group, overlayLines) {
         let resultText = '';
-        for (let i = group.leftIdx; i <= group.rightIdx; ++i) {
+        for (let i of group.indices) {
             const sep = (resultText.length > 0) ? ' ' : '';
             resultText += sep + overlayLines[i].LineText;
         }
@@ -261,8 +253,8 @@ class ExtractNumbers{
         let sorted = [...groups].sort((g1, g2) => g1.averageY - g2.averageY);
 
         // filter groups with single / multiple lines
-        const singles = sorted.filter(a => a.leftIdx == a.rightIdx);
-        const multis = sorted.filter(a => a.rightIdx > a.leftIdx);
+        const singles = sorted.filter(a => a.indices.length == 1);
+        const multis = sorted.filter(a => a.indices.length != 1);
 
         return [...singles, ...multis];  // merge the arrays together again
     }
@@ -279,16 +271,28 @@ class ExtractNumbers{
 
     computeBounds(overlayLines) {
         return {
-            tops: overlayLines.map(line => Math.min(line.Words.map(item => item.Top))),
+            tops: overlayLines.map(line => Math.min(...line.Words.map(item => item.Top))),
 
-            left: overlayLines.map(line => Math.min(line.Words.map(item => item.Left))),
+            lefts: overlayLines.map(line => Math.min(...line.Words.map(item => item.Left))),
 
             bottoms: overlayLines.map(line => 
-                Math.max(line.Words.map(item => item.Top + item.Height))),
+                Math.max(...line.Words.map(item => item.Top + item.Height))),
 
             rights: overlayLines.map(line => 
-                Math.max(line.Words.map(item => item.Left + item.Width)))
+                Math.max(...line.Words.map(item => item.Left + item.Width)))
         }
+    }
+
+    createGroups(bounds) {
+        return bounds.tops.map((top, i) => ({
+            top: top,
+            left: bounds.lefts[i],
+            right: bounds.rights[i],
+            bottom: bounds.bottoms[i],
+            indices: [i],
+            leftFailed: false,
+            rightFailed: false
+        }));
     }
 
     /** the main method of the class */
@@ -301,13 +305,13 @@ class ExtractNumbers{
         const bounds = this.computeBounds(overlayLines);
 
         // initialization: each line has its own group
-        let groups = this.createGroups(tops);
+        let groups = this.createGroups(bounds);
         // adjacent lines form a single group 
-        this.mergeGroups(groups); 
+        groups = this.mergeGroups(groups, overlayLines); 
 
         // we add information regarding position and text to each group object
         for (let group of groups) {
-            group.averageY = this.groupAverageY(group, tops); 
+            group.averageY = this.groupAverageY(group, bounds.tops); 
             group.text = this.groupText(group, overlayLines);         
         }
 
@@ -316,37 +320,3 @@ class ExtractNumbers{
         return this.numbersFromGroups(groups);
     }
 };
-
-
-
-const MERGE_LIMIT = 30;
-
-/**
- * The default merge method in ExtracNumbers class does not, as it showed out, work well. 
- * While it is theoretically, in the real world, it is fragile (non-robust) given bad inputs.
- * In particular it can happend that the OCR/API returns the text on the same line as two 
- * separate lines, where the y position of the "second" line  * is only few pixels more than 
- * the y position of the "first line". This highly subaverage  * jump then inteferes with 
- * correct functioning of the algorithm.
- * 
- * Therefore, we have changed merging to this simple method. This is just for demonstration
- * purposes. The solution can be extended to take into account different font-sizes and/or
- * further information.
- */
-class SimplifiedExtract extends ExtractNumbers {
-    mergeGroups(groups) {
-        let i = 1;
-        while(i < groups.length) {
-            const nowJump = groups[i].jumpY;
-            if (nowJump > 0 && nowJump <= MERGE_LIMIT) {
-                groups[i-1].rightIdx = groups[i].rightIdx; // extend the left group to the end
-                //   of the right group
-
-                groups.splice(i, 1) // remove the right group (which has been already merged
-                // into the left group) from groups       
-            }
-            else
-                ++i;  // increment i only if a group was not deleted
-        }
-    }
-}
